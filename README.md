@@ -1,1 +1,1 @@
-Hello, this is random Game
+Hello, this is random Game by Nox
