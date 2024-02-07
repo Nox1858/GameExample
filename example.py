@@ -7,10 +7,12 @@ screen = pygame.display.set_mode((1200,700))
 pygame.display.set_caption('Game')
 clock = pygame.time.Clock()
 running = True
-dt = 0
-tick = 0
+playing = True
+dt = 1
+tick = 1
 
-font = pygame.font.SysFont('Comic Sans MS', 24)
+font1 = pygame.font.SysFont('Comic Sans MS', 24)
+font2 = pygame.font.SysFont('Comic Sans MS', 36)
 
 
 width = screen.get_width()
@@ -40,7 +42,7 @@ class player():
                 self.color = self.hit_color
                 if(self.health <= 0):
                     print('You Died')
-                    print('Score:',self.score)
+                    print('final score:',self.score)
                     raise Exception ("You Died")
                 return True
             else:
@@ -84,6 +86,8 @@ class enemy():
             if(self.health <= 0):
                 if(self.speed < 320):
                     self.speed += 20
+                elif(1 == random.randrange(1,20,1)):
+                    enemies.remove(self)
                 print('died')
                 chara.score += 1
                 x = random.randrange(0,width,1)
@@ -106,15 +110,14 @@ class enemy():
     def healthbar(self):
         x = self.pos.x - self.max_health/2
         y = self.pos.y - 3
-        back_rect = pygame.Rect(x-1,y-2,self.max_health+2,8)
+        back_rect = pygame.Rect(x-1,y-1,self.max_health+2,8)
         base_rect = pygame.Rect(x,y,self.max_health,6)
         value_rect = pygame.Rect(x,y,self.health,6)
         pygame.draw.rect(screen,"black",back_rect)
         pygame.draw.rect(screen,"white",base_rect)
         pygame.draw.rect(screen,"green",value_rect)
         
-def inputHandler(chara):
-    keys = pygame.key.get_pressed()
+def player_handler(chara):
     if keys[pygame.K_w]:
         chara.pos.y -= 300 * dt
     if keys[pygame.K_s]:
@@ -127,6 +130,8 @@ def inputHandler(chara):
         chara.shoot()
     if keys[pygame.K_j]:
         print(shots)
+    if keys[pygame.K_o]:
+        enemies.clear()
     mouse = pygame.mouse.get_pressed()
     pos = pygame.mouse.get_pos()
     if mouse[0]:
@@ -140,53 +145,15 @@ def inputHandler(chara):
     chara.pos.x %= width
     chara.pos.y %= height
 
-    # this draws the player and TODO: it's healthbar
     # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes other than circle
     pygame.draw.circle(screen, chara.color, chara.pos, 30)
     healthbar(chara.max_health,chara.health)
 
-def healthbar(max_value,value):
-    scale = width/max_value/3
-    x = width/2 - max_value*scale/2+1
-    back_rect = pygame.Rect(x-1,0,max_value*scale+2,scale+1)
-    base_rect = pygame.Rect(x,0,max_value*scale,scale)
-    value_rect = pygame.Rect(x,0,value*scale,scale)
-    pygame.draw.rect(screen,"black",back_rect)
-    pygame.draw.rect(screen,"white",base_rect)
-    pygame.draw.rect(screen,"green",value_rect)
-    pygame.draw
+    # handles tele-cooldown
+    if(chara.tele_cooldown > 0):
+        chara.tele_cooldown -= 1
 
-def update_score(score):
-    score_text = font.render(str(score), True, (0, 255, 0))
-    text_rect = score_text.get_rect()
-    text_rect.center = (width-(text_rect.width/2)-5, 0+(text_rect.height/2))
-    screen.blit(score_text, text_rect)
-
-
-chara = player(30,30,5,4,"red","darkred")
-blob = enemy(18,20,100,"green","darkgreen")
-enemies.append(blob)
-
-while running:
-    # refresh the screen
-    screen.fill("black")
-
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.MOUSEBUTTONUP:
-            chara.shoot()
-    
-    # draw cursor
-    pygame.draw.circle(screen, "blue", cursor_pos, 8) 
-
-    # handle player
-    inputHandler(chara)
-    
-
-    # it should also work for several enemies
+def enemy_handler():
     for blob in enemies:
         chara.is_hit(blob)
         blob.move(chara.pos)
@@ -206,19 +173,88 @@ while running:
             except: True
         pygame.draw.circle(screen, "yellow", shot.pos, 4)
 
+def update_score(score):
+    score_text = font1.render(str(score), True, (0, 255, 0))
+    text_rect = score_text.get_rect()
+    text_rect.center = (width-(text_rect.width/2)-5, 0+(text_rect.height/2))
+    screen.blit(score_text, text_rect)
+
+def healthbar(max_value,value):
+    scale = width/max_value/3
+    x = width/2 - max_value*scale/2+1
+    back_rect = pygame.Rect(x-1,0,max_value*scale+2,scale+1)
+    base_rect = pygame.Rect(x,0,max_value*scale,scale)
+    value_rect = pygame.Rect(x,0,value*scale,scale)
+    pygame.draw.rect(screen,"black",back_rect)
+    pygame.draw.rect(screen,"white",base_rect)
+    pygame.draw.rect(screen,"green",value_rect)
+    pygame.draw
+
+def update_game():
+    pygame.draw.circle(screen, "blue", cursor_pos, 8) # draw cursor
+
+    player_handler(chara)
+
+    enemy_handler()
+
     update_score(chara.score) 
 
-    # update Screen
-    pygame.display.flip()
-    
-    # limits FPS to 60
-    # dt is delta time in seconds since last frame, used for framerate-independent physics.
-    dt = clock.tick(60) / 1000
+    # winscreen (useless, as it is probably impossible. Actually nvm; it is improbably possible)
+    if(len(enemies) == 0):
+        text1 = font2.render("You have done that, which is statistically impossible.", True, (0, 255, 0))
+        text2 = font2.render("You have won.", True, (0, 255, 0))
+        text3 = font2.render("Congrats", True, (0, 255, 0))
+        text_rect1 = text1.get_rect()
+        text_rect2 = text2.get_rect()
+        text_rect3 = text3.get_rect()
+        text_rect1.center = (width/2, height/3+(text_rect1.height/2))
+        text_rect2.center = (width/2, height/3+text_rect1.height+(text_rect2.height/2))
+        text_rect3.center = (width/2, height/3+text_rect1.height+text_rect2.height+(text_rect3.height/2))
+        screen.blit(text1, text_rect1)
+        screen.blit(text2, text_rect2)
+        screen.blit(text3, text_rect3)
 
-    # this stuff is used for timing things
-    if(chara.tele_cooldown > 0):
-        chara.tele_cooldown -= 1
-    tick += 1
-    tick %= 1000
+def menu():
+    score_text = font1.render("this is the menu", True, (0, 255, 0))
+    text_rect = score_text.get_rect()
+    text_rect.center = (width/2, height/2)
+    screen.blit(score_text, text_rect)
+
+chara = player(30,30,5,4,"red","darkred")
+blob = enemy(18,20,100,"green","darkgreen")
+enemies.append(blob)
+
+while running:
+    # refresh the screen
+    screen.fill("black")
+
+    # poll for events
+    # pygame.QUIT event means the user clicked X to close your window
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.MOUSEBUTTONUP:
+            chara.shoot()
+    
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_ESCAPE]:
+        print('esc')
+        playing = False
+    
+    if playing:
+        update_game()
+
+        # limits FPS to 60, dt is seconds since last frame, used for fps-independent physics
+        dt = clock.tick(60) / 1000
+        tick += 1
+        tick %= 1000
+    else:
+        # TODO something, idk
+        menu()
+        if keys[pygame.K_p]:
+            playing = True
+    
+    # update Screen
+    pygame.display.flip()    
 
 pygame.quit()
