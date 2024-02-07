@@ -10,11 +10,15 @@ running = True
 dt = 0
 tick = 0
 
+font = pygame.font.SysFont('Comic Sans MS', 24)
+
+
 width = screen.get_width()
 height = screen.get_height()
 
 cursor_pos = pygame.Vector2(width/2, height / 2)
 shots = []
+enemies = []
 
 class player():
     def __init__(self,size, max_health,shoot_speed,max_teleports,norm_color,hit_color):
@@ -88,6 +92,10 @@ class enemy():
                 self.pos.x = x
                 self.pos.y = y
                 self.health = self.max_health
+                if(1 == random.randrange(1,10,1)):
+                    print("you got a new enemy!")
+                    blob = enemy(18,20,100,"green","darkgreen")
+                    enemies.append(blob)
             return True
         elif(tick%10 == 0):
             self.color = self.norm_color
@@ -148,10 +156,15 @@ def healthbar(max_value,value):
     pygame.draw.rect(screen,"green",value_rect)
     pygame.draw
 
+def update_score(score):
+    score_text = font.render(str(score), True, (0, 255, 0))
+    text_rect = score_text.get_rect()
+    text_rect.center = (width-(text_rect.width/2)-5, 0+(text_rect.height/2))
+    screen.blit(score_text, text_rect)
+
+
 chara = player(30,30,5,4,"red","darkred")
-enemy_pos = pygame.Vector2(300,70)
 blob = enemy(18,20,100,"green","darkgreen")
-enemies = []
 enemies.append(blob)
 
 while running:
@@ -192,7 +205,9 @@ while running:
             try: shots.remove(shot)
             except: True
         pygame.draw.circle(screen, "yellow", shot.pos, 4)
-        
+
+    update_score(chara.score) 
+
     # update Screen
     pygame.display.flip()
     
