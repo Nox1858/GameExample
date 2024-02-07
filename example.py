@@ -3,7 +3,8 @@ import random
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+screen = pygame.display.set_mode((1200,700))
+pygame.display.set_caption('Game')
 clock = pygame.time.Clock()
 running = True
 dt = 0
@@ -24,7 +25,7 @@ class player():
         self.tele_cooldown = 0
         self.teleports = max_teleports
         self.health = max_health
-        self.maxhealth = max_health
+        self.max_health = max_health
         self.color = norm_color
         self.norm_color = norm_color
         self.hit_color = hit_color
@@ -72,7 +73,7 @@ class enemy():
         self.color = norm_color
         self.norm_color = norm_color
         self.hit_color = hit_color
-    def isHit(self,bullet,chara):
+    def is_hit(self,bullet,chara):
         if (bullet.pos.x < self.pos.x+self.size and bullet.pos.x > self.pos.x-self.size) and (bullet.pos.y < self.pos.y+self.size and bullet.pos.y > self.pos.y-self.size):
             self.health -= 1
             self.color = self.hit_color
@@ -94,11 +95,17 @@ class enemy():
         move = pygame.Vector2(player_pos.x-self.pos.x,player_pos.y-self.pos.y)
         move.normalize_ip()
         self.pos += move*self.speed*dt
+    def healthbar(self):
+        x = self.pos.x - self.max_health/2
+        y = self.pos.y - 3
+        back_rect = pygame.Rect(x-1,y-2,self.max_health+2,8)
+        base_rect = pygame.Rect(x,y,self.max_health,6)
+        value_rect = pygame.Rect(x,y,self.health,6)
+        pygame.draw.rect(screen,"black",back_rect)
+        pygame.draw.rect(screen,"white",base_rect)
+        pygame.draw.rect(screen,"green",value_rect)
         
 def inputHandler(chara):
-    pygame.draw.circle(screen, chara.color, chara.pos, 30)
-    # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes other than circle
-
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
         chara.pos.y -= 300 * dt
@@ -121,9 +128,25 @@ def inputHandler(chara):
             chara.shoot()
     if mouse[2] and chara.tele_cooldown == 0:
         chara.teleport(pos)
-        
+
     chara.pos.x %= width
     chara.pos.y %= height
+
+    # this draws the player and TODO: it's healthbar
+    # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes other than circle
+    pygame.draw.circle(screen, chara.color, chara.pos, 30)
+    healthbar(chara.max_health,chara.health)
+
+def healthbar(max_value,value):
+    scale = width/max_value/3
+    x = width/2 - max_value*scale/2+1
+    back_rect = pygame.Rect(x-1,0,max_value*scale+2,scale+1)
+    base_rect = pygame.Rect(x,0,max_value*scale,scale)
+    value_rect = pygame.Rect(x,0,value*scale,scale)
+    pygame.draw.rect(screen,"black",back_rect)
+    pygame.draw.rect(screen,"white",base_rect)
+    pygame.draw.rect(screen,"green",value_rect)
+    pygame.draw
 
 chara = player(30,30,5,4,"red","darkred")
 enemy_pos = pygame.Vector2(300,70)
@@ -150,18 +173,19 @@ while running:
     inputHandler(chara)
     
 
-    # it shoudl also work for several enemies
+    # it should also work for several enemies
     for blob in enemies:
-        pygame.draw.circle(screen, blob.color, blob.pos, 12)
         chara.is_hit(blob)
         blob.move(chara.pos)
+        pygame.draw.circle(screen, blob.color, blob.pos, 14)
+        blob.healthbar()
 
     for shot in shots:
         shot.update()
         if shot.direction.length() == 0:
             shots.remove(shot)
         for blob in enemies:
-            if blob.isHit(shot,chara):
+            if blob.is_hit(shot,chara):
                 try: shots.remove(shot)
                 except: True
         if shot.pos.x > width or shot.pos.x < 0 or shot.pos.y > height or shot.pos.y < 0:
@@ -173,8 +197,7 @@ while running:
     pygame.display.flip()
     
     # limits FPS to 60
-    # dt is delta time in seconds since last frame, used for framerate-
-    # independent physics.
+    # dt is delta time in seconds since last frame, used for framerate-independent physics.
     dt = clock.tick(60) / 1000
 
     # this stuff is used for timing things
