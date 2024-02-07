@@ -1,6 +1,6 @@
 Hello, this is random game by Nox
 
 TODO:
-display for player HP, teleports left, enemy HP, etc.
+teleports left, pause mechanic and menu, upgrades or something similar
 limit screen-edge-jumping somehow
 implement other fun mechanics
