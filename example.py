@@ -12,7 +12,7 @@ tick = 0
 width = screen.get_width()
 height = screen.get_height()
 
-click_pos = pygame.Vector2(width/2, height / 2)
+cursor_pos = pygame.Vector2(width/2, height / 2)
 shots = []
 
 class player():
@@ -40,10 +40,18 @@ class player():
                 return True
             else:
                 self.color = self.norm_color
+    def teleport(self,pos):
+        if(self.teleports > 0):
+            self.pos.x = pos[0]
+            self.pos.y = pos[1]
+            self.teleports -= 1
+            self.tele_cooldown = 200
+    def shoot(self):
+        shots.append(bullet(self,20))
 
 class bullet():
     def __init__(self,chara,speed):
-        self.direction = pygame.Vector2(click_pos.x-chara.pos.x,click_pos.y-chara.pos.y)
+        self.direction = pygame.Vector2(cursor_pos.x-chara.pos.x,cursor_pos.y-chara.pos.y)
         if(self.direction.length() != 0):
             self.direction.normalize_ip()
         self.pos = pygame.Vector2(chara.pos)
@@ -89,7 +97,7 @@ class enemy():
         
 def inputHandler(chara):
     pygame.draw.circle(screen, chara.color, chara.pos, 30)
-    # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes
+    # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes other than circle
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
@@ -101,36 +109,25 @@ def inputHandler(chara):
     if keys[pygame.K_d]:
         chara.pos.x += 300 * dt
     if keys[pygame.K_SPACE] and tick%chara.shoot_speed == 0:
-        shoot(chara)
+        chara.shoot()
     if keys[pygame.K_j]:
         print(shots)
     mouse = pygame.mouse.get_pressed()
     pos = pygame.mouse.get_pos()
     if mouse[0]:
-        click_pos.x = pos[0]
-        click_pos.y = pos[1]
+        cursor_pos.x = pos[0]
+        cursor_pos.y = pos[1]
         if tick%chara.shoot_speed == 0:
-            shoot(chara)
+            chara.shoot()
     if mouse[2] and chara.tele_cooldown == 0:
-        teleport(chara,pos)
+        chara.teleport(pos)
         
     chara.pos.x %= width
     chara.pos.y %= height
 
-def shoot(chara):
-    shots.append(bullet(chara,20))
-
-def teleport(chara,pos):
-    if(chara.teleports > 0):
-        chara.pos.x = pos[0]
-        chara.pos.y = pos[1]
-    chara.teleports -= 1
-    chara.tele_cooldown = 200
-
 chara = player(30,30,5,4,"red","darkred")
 enemy_pos = pygame.Vector2(300,70)
 blob = enemy(18,20,100,"green","darkgreen")
-
 enemies = []
 enemies.append(blob)
 
@@ -144,13 +141,20 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONUP:
-            shoot(chara)
+            chara.shoot()
     
-    pygame.draw.circle(screen, "blue", click_pos, 10)
+    # draw cursor
+    pygame.draw.circle(screen, "blue", cursor_pos, 8) 
+
+    # handle player
+    inputHandler(chara)
+    
+
+    # it shoudl also work for several enemies
     for blob in enemies:
         pygame.draw.circle(screen, blob.color, blob.pos, 12)
-
-    inputHandler(chara)
+        chara.is_hit(blob)
+        blob.move(chara.pos)
 
     for shot in shots:
         shot.update()
@@ -167,15 +171,13 @@ while running:
         
     # update Screen
     pygame.display.flip()
-
-    chara.is_hit(blob)
-    for blob in enemies:
-        blob.move(chara.pos)
+    
     # limits FPS to 60
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
     dt = clock.tick(60) / 1000
 
+    # this stuff is used for timing things
     if(chara.tele_cooldown > 0):
         chara.tele_cooldown -= 1
     tick += 1
