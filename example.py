@@ -8,6 +8,7 @@ pygame.display.set_caption('Game')
 clock = pygame.time.Clock()
 running = True
 playing = True
+pause_cooldown = 0
 dt = 1
 tick = 1
 
@@ -27,6 +28,9 @@ class player():
         self.score = 0
         self.pos = pygame.Vector2(width/2, height / 2)
         self.shoot_speed = shoot_speed
+        self.stomp_size = 80
+        self.stomp_damage = 10
+        self.stomp_cooldown = 0
         self.size = size
         self.tele_cooldown = 0
         self.teleports = max_teleports
@@ -35,17 +39,19 @@ class player():
         self.color = norm_color
         self.norm_color = norm_color
         self.hit_color = hit_color
-    def is_hit(self,enemy):
+        self.hit_this_tick = False
+    def is_hit(self,blob):
         if(tick%6 == 0):
-            if (enemy.pos.x < self.pos.x+self.size and enemy.pos.x > self.pos.x-self.size) and (enemy.pos.y < self.pos.y+self.size and enemy.pos.y > self.pos.y-self.size):
+            if (blob.pos.x < self.pos.x+self.size and blob.pos.x > self.pos.x-self.size) and (blob.pos.y < self.pos.y+self.size and blob.pos.y > self.pos.y-self.size):
                 self.health -= 1
                 self.color = self.hit_color
+                self.hit_this_tick = True
                 if(self.health <= 0):
                     print('You Died')
                     print('final score:',self.score)
                     raise Exception ("You Died")
                 return True
-            else:
+            elif not self.hit_this_tick:
                 self.color = self.norm_color
     def teleport(self,pos):
         if(self.teleports > 0):
@@ -54,40 +60,51 @@ class player():
             self.teleports -= 1
             self.tele_cooldown = 200
     def shoot(self):
-        shots.append(bullet(self,20))
+        shots.append(bullet(self,20,(255,255,0)))
+    def stomp(self):
+        if(self.stomp_cooldown == 0):
+            for blob in enemies:
+                if(blob.pos.x < self.pos.x+self.stomp_size and blob.pos.x > self.pos.x-self.stomp_size) and (blob.pos.y < self.pos.y+self.stomp_size and blob.pos.y > self.pos.y-self.stomp_size):
+                    blob.is_hit(blob,self,8)
+            self.stomp_cooldown += 100
+            pygame.draw.circle(screen, (100,200,100), self.pos, self.stomp_size)
 
 class bullet():
-    def __init__(self,chara,speed):
+    def __init__(self,chara,speed,color):
         self.direction = pygame.Vector2(cursor_pos.x-chara.pos.x,cursor_pos.y-chara.pos.y)
         if(self.direction.length() != 0):
             self.direction.normalize_ip()
         self.pos = pygame.Vector2(chara.pos)
         self.speed = speed
+        self.color = color
     def update(self):
         self.pos.x += self.direction.x*self.speed
         self.pos.y += self.direction.y*self.speed
 
 class enemy():
-    def __init__(self,size, max_health,speed,norm_color,hit_color):
+    def __init__(self,size, max_health,speed,norm_color,hit_color,die_rate,respawn_rate):
         x = random.randrange(0,width,1)
         y = random.randrange(0,height,1)
         self.pos = pygame.Vector2(x,y)
         self.health = max_health
         self.max_health = max_health
+        self.respawn_rate = respawn_rate
+        self.die_rate = die_rate
         self.size = size
         self.speed = speed
         self.color = norm_color
         self.norm_color = norm_color
         self.hit_color = hit_color
-    def is_hit(self,bullet,chara):
+    def is_hit(self,bullet,chara,damage):
         if (bullet.pos.x < self.pos.x+self.size and bullet.pos.x > self.pos.x-self.size) and (bullet.pos.y < self.pos.y+self.size and bullet.pos.y > self.pos.y-self.size):
-            self.health -= 1
+            self.health -= damage
             self.color = self.hit_color
             if(self.health <= 0):
                 if(self.speed < 320):
                     self.speed += 20
-                elif(1 == random.randrange(1,20,1)):
+                elif(1 == random.randrange(1,self.die_rate,1)):
                     enemies.remove(self)
+                    return
                 print('died')
                 chara.score += 1
                 x = random.randrange(0,width,1)
@@ -96,9 +113,9 @@ class enemy():
                 self.pos.x = x
                 self.pos.y = y
                 self.health = self.max_health
-                if(1 == random.randrange(1,10,1)):
+                if(1 == random.randrange(1,self.respawn_rate,1)):
                     print("you got a new enemy!")
-                    blob = enemy(18,20,100,"green","darkgreen")
+                    blob = enemy(18,20,100,"green","darkgreen",self.die_rate,self.respawn_rate)
                     enemies.append(blob)
             return True
         elif(tick%10 == 0):
@@ -127,7 +144,7 @@ def player_handler(chara):
     if keys[pygame.K_d]:
         chara.pos.x += 300 * dt
     if keys[pygame.K_SPACE] and tick%chara.shoot_speed == 0:
-        chara.shoot()
+        chara.stomp()
     if keys[pygame.K_j]:
         print(shots)
     if keys[pygame.K_o]:
@@ -146,12 +163,16 @@ def player_handler(chara):
     chara.pos.y %= height
 
     # pygame.draw.polygon(screen,"red",player_pos,1) TODO: figure out shapes other than circle
-    pygame.draw.circle(screen, chara.color, chara.pos, 30)
+    pygame.draw.circle(screen, chara.color, chara.pos, chara.size)
     healthbar(chara.max_health,chara.health)
+
+    chara.hit_this_tick = False
 
     # handles tele-cooldown
     if(chara.tele_cooldown > 0):
         chara.tele_cooldown -= 1
+    if(chara.stomp_cooldown > 0):
+        chara.stomp_cooldown -= 1
 
 def enemy_handler():
     for blob in enemies:
@@ -165,21 +186,36 @@ def enemy_handler():
         if shot.direction.length() == 0:
             shots.remove(shot)
         for blob in enemies:
-            if blob.is_hit(shot,chara):
+            if blob.is_hit(shot,chara,1):
                 try: shots.remove(shot)
                 except: True
         if shot.pos.x > width or shot.pos.x < 0 or shot.pos.y > height or shot.pos.y < 0:
             try: shots.remove(shot)
             except: True
-        pygame.draw.circle(screen, "yellow", shot.pos, 4)
+        pygame.draw.circle(screen, shot.color, shot.pos, 4)
 
-def update_score(score):
-    score_text = font1.render(str(score), True, (0, 255, 0))
+def update_score(chara):
+    # score display
+    score_text = font1.render(str(chara.score), True, (0, 255, 0))
     text_rect = score_text.get_rect()
     text_rect.center = (width-(text_rect.width/2)-5, 0+(text_rect.height/2))
     screen.blit(score_text, text_rect)
 
+    # teleports left display
+    score_text2 = font1.render(str(chara.teleports), True, (100, 100, 250))
+    text_rect2 = score_text2.get_rect()
+    text_rect2.center = (width-(text_rect2.width/2)-10-text_rect.width, 0+(text_rect2.height/2))
+    screen.blit(score_text2, text_rect2)
+
+    # stomp-cooldown display
+    if(chara.stomp_cooldown > 0):
+        score_text3 = font1.render(str(chara.stomp_cooldown), True, (100, 100, 250))
+        text_rect3 = score_text3.get_rect()
+        text_rect3.center = (width-(text_rect3.width/2)-10-text_rect.width-text_rect2.width, 0+(text_rect3.height/2))
+        screen.blit(score_text3, text_rect3)
+
 def healthbar(max_value,value):
+    # draw healthbar
     scale = width/max_value/3
     x = width/2 - max_value*scale/2+1
     back_rect = pygame.Rect(x-1,0,max_value*scale+2,scale+1)
@@ -190,18 +226,24 @@ def healthbar(max_value,value):
     pygame.draw.rect(screen,"green",value_rect)
     pygame.draw
 
+    # draw health points
+    score_text = font1.render(str(value)+"/"+str(max_value), True, (255, 255, 255))
+    text_rect = score_text.get_rect()
+    text_rect.center = (x-(text_rect.width/2)-5, 0+(text_rect.height/2))
+    screen.blit(score_text, text_rect)
+
 def update_game():
-    pygame.draw.circle(screen, "blue", cursor_pos, 8) # draw cursor
+    pygame.draw.circle(screen, (0,0,255), cursor_pos, 8) # draw cursor
 
     player_handler(chara)
 
     enemy_handler()
 
-    update_score(chara.score) 
+    update_score(chara) 
 
     # winscreen (useless, as it is probably impossible. Actually nvm; it is improbably possible)
     if(len(enemies) == 0):
-        text1 = font2.render("You have done that, which is statistically impossible.", True, (0, 255, 0))
+        text1 = font2.render("You have achieved something", True, (0, 255, 0))
         text2 = font2.render("You have won.", True, (0, 255, 0))
         text3 = font2.render("Congrats", True, (0, 255, 0))
         text_rect1 = text1.get_rect()
@@ -214,14 +256,20 @@ def update_game():
         screen.blit(text2, text_rect2)
         screen.blit(text3, text_rect3)
 
-def menu():
+def draw_pause_menu():
+    pygame.draw.circle(screen, (0,0,51), cursor_pos, 8)
+    for blob in enemies:
+        pygame.draw.circle(screen, (blob.color[0]/5,blob.color[1]/5,blob.color[2]/5), blob.pos, 14)
+    for shot in shots:
+        pygame.draw.circle(screen, (shot.color[0]/5,shot.color[1]/5,shot.color[2]/5), shot.pos, 4)
+    pygame.draw.circle(screen, (chara.color[0]/5,chara.color[1]/5,chara.color[2]/5), chara.pos, chara.size)
     score_text = font1.render("this is the menu", True, (0, 255, 0))
     text_rect = score_text.get_rect()
     text_rect.center = (width/2, height/2)
     screen.blit(score_text, text_rect)
 
-chara = player(30,30,5,4,"red","darkred")
-blob = enemy(18,20,100,"green","darkgreen")
+chara = player(30,50,5,4,(255,0,0),(100,0,0))
+blob = enemy(18,20,100,(0,255,0),(0,100,0),20,10)
 enemies.append(blob)
 
 while running:
@@ -237,22 +285,28 @@ while running:
             chara.shoot()
     
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_ESCAPE]:
-        print('esc')
-        playing = False
     
     if playing:
         update_game()
 
-        # limits FPS to 60, dt is seconds since last frame, used for fps-independent physics
-        dt = clock.tick(60) / 1000
-        tick += 1
-        tick %= 1000
     else:
         # TODO something, idk
-        menu()
-        if keys[pygame.K_p]:
+        draw_pause_menu()
+
+    if keys[pygame.K_ESCAPE] and pause_cooldown == 0:
+        if playing:
+            pause_cooldown = 20
+            playing = False
+        else:
+            pause_cooldown = 20
             playing = True
+
+    # limits FPS to 60, dt is seconds since last frame, used for fps-independent physics
+    dt = clock.tick(60) / 1000
+    tick += 1
+    tick %= 1000
+    if(pause_cooldown > 0):
+        pause_cooldown -= 1
     
     # update Screen
     pygame.display.flip()    
