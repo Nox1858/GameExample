@@ -43,7 +43,7 @@ class player():
     def is_hit(self,blob):
         if(tick%6 == 0):
             if (blob.pos.x < self.pos.x+self.size and blob.pos.x > self.pos.x-self.size) and (blob.pos.y < self.pos.y+self.size and blob.pos.y > self.pos.y-self.size):
-                self.health -= 1
+                self.health -= blob.atk
                 self.color = self.hit_color
                 self.hit_this_tick = True
                 if(self.health <= 0):
@@ -60,7 +60,7 @@ class player():
             self.teleports -= 1
             self.tele_cooldown = 200
     def shoot(self):
-        shots.append(bullet(self,20,(255,255,0)))
+        shots.append(bullet(self,20,(255,255,0),1))
     def stomp(self):
         if(self.stomp_cooldown == 0):
             for blob in enemies:
@@ -70,19 +70,20 @@ class player():
             pygame.draw.circle(screen, (100,200,100), self.pos, self.stomp_size)
 
 class bullet():
-    def __init__(self,chara,speed,color):
+    def __init__(self,chara,speed,color,atk):
         self.direction = pygame.Vector2(cursor_pos.x-chara.pos.x,cursor_pos.y-chara.pos.y)
         if(self.direction.length() != 0):
             self.direction.normalize_ip()
         self.pos = pygame.Vector2(chara.pos)
         self.speed = speed
         self.color = color
+        self.atk = atk
     def update(self):
         self.pos.x += self.direction.x*self.speed
         self.pos.y += self.direction.y*self.speed
 
 class enemy():
-    def __init__(self,size, max_health,speed,norm_color,hit_color,die_rate,respawn_rate):
+    def __init__(self,size, max_health,speed,norm_color,hit_color,die_rate,respawn_rate, atk):
         x = random.randrange(0,width,1)
         y = random.randrange(0,height,1)
         self.pos = pygame.Vector2(x,y)
@@ -95,6 +96,7 @@ class enemy():
         self.color = norm_color
         self.norm_color = norm_color
         self.hit_color = hit_color
+        self.atk = atk
     def is_hit(self,bullet,chara,damage):
         if (bullet.pos.x < self.pos.x+self.size and bullet.pos.x > self.pos.x-self.size) and (bullet.pos.y < self.pos.y+self.size and bullet.pos.y > self.pos.y-self.size):
             self.health -= damage
@@ -115,7 +117,7 @@ class enemy():
                 self.health = self.max_health
                 if(1 == random.randrange(1,self.respawn_rate,1)):
                     print("you got a new enemy!")
-                    blob = enemy(18,20,100,"green","darkgreen",self.die_rate,self.respawn_rate)
+                    blob = enemy(18,20,100,"green","darkgreen",self.die_rate,self.respawn_rate,self.atk)
                     enemies.append(blob)
             return True
         elif(tick%10 == 0):
@@ -174,9 +176,17 @@ def player_handler(chara):
     if(chara.stomp_cooldown > 0):
         chara.stomp_cooldown -= 1
 
+def damage_display(pos,atk,offset):
+    hit_text = font2.render(str(atk), True, (255, 100, 20))
+    text_rect = hit_text.get_rect()
+    off = pygame.Vector2(offset*random.randrange(-10,10,1)/10,offset*random.randrange(-10,10,1)/10)
+    text_rect.center = (pos.x+off.x,pos.y+off.y)
+    screen.blit(hit_text, text_rect)
+
 def enemy_handler():
     for blob in enemies:
-        chara.is_hit(blob)
+        if chara.is_hit(blob):
+            damage_display(blob.pos,blob.atk,chara.size)
         blob.move(chara.pos)
         pygame.draw.circle(screen, blob.color, blob.pos, 14)
         blob.healthbar()
@@ -187,6 +197,7 @@ def enemy_handler():
             shots.remove(shot)
         for blob in enemies:
             if blob.is_hit(shot,chara,1):
+                damage_display(blob.pos,shot.atk,blob.size)
                 try: shots.remove(shot)
                 except: True
         if shot.pos.x > width or shot.pos.x < 0 or shot.pos.y > height or shot.pos.y < 0:
@@ -224,7 +235,6 @@ def healthbar(max_value,value):
     pygame.draw.rect(screen,"black",back_rect)
     pygame.draw.rect(screen,"white",base_rect)
     pygame.draw.rect(screen,"green",value_rect)
-    pygame.draw
 
     # draw health points
     score_text = font1.render(str(value)+"/"+str(max_value), True, (255, 255, 255))
@@ -269,7 +279,7 @@ def draw_pause_menu():
     screen.blit(score_text, text_rect)
 
 chara = player(30,50,5,4,(255,0,0),(100,0,0))
-blob = enemy(18,20,100,(0,255,0),(0,100,0),20,10)
+blob = enemy(18,20,100,(0,255,0),(0,100,0),20,10,1)
 enemies.append(blob)
 
 while running:
