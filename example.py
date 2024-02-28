@@ -1,3 +1,6 @@
+# this is a learning project, it was created by modifying an example game from the pygame community
+# movement and basic visuel engine by a creator from a pygame tutorial, rest by Nox1858
+
 import pygame
 import random
 
@@ -15,13 +18,13 @@ tick = 1
 font1 = pygame.font.SysFont('Comic Sans MS', 24)
 font2 = pygame.font.SysFont('Comic Sans MS', 36)
 
-
 width = screen.get_width()
 height = screen.get_height()
 
 cursor_pos = pygame.Vector2(width/2, height / 2)
 shots = []
 enemies = []
+
 
 class player():
     def __init__(self,size, max_health,shoot_speed,max_teleports,norm_color,hit_color):
@@ -69,6 +72,7 @@ class player():
             self.stomp_cooldown += 100
             pygame.draw.circle(screen, (100,200,100), self.pos, self.stomp_size)
 
+
 class bullet():
     def __init__(self,chara,speed,color,atk):
         self.direction = pygame.Vector2(cursor_pos.x-chara.pos.x,cursor_pos.y-chara.pos.y)
@@ -81,6 +85,7 @@ class bullet():
     def update(self):
         self.pos.x += self.direction.x*self.speed
         self.pos.y += self.direction.y*self.speed
+
 
 class enemy():
     def __init__(self,size, max_health,speed,norm_color,hit_color,die_rate,respawn_rate, atk):
@@ -135,7 +140,8 @@ class enemy():
         pygame.draw.rect(screen,"black",back_rect)
         pygame.draw.rect(screen,"white",base_rect)
         pygame.draw.rect(screen,"green",value_rect)
-        
+
+
 def player_handler(chara):
     if keys[pygame.K_w]:
         chara.pos.y -= 300 * dt
@@ -251,7 +257,7 @@ def update_game():
 
     update_score(chara) 
 
-    # winscreen (useless, as it is probably impossible. Actually nvm; it is improbably possible)
+    # winscreen
     if(len(enemies) == 0):
         text1 = font2.render("You have achieved something", True, (0, 255, 0))
         text2 = font2.render("You have won.", True, (0, 255, 0))
