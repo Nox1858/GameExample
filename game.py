@@ -25,7 +25,7 @@ shots = []
 enemies = []
 
 class player():
-    def __init__(self, max_health,max_teleports,norm_color,hit_color):
+    def __init__(self, max_health,max_teleports):
         #dimensions
         self.pos = pygame.Vector2(width/2, height / 2)
         self.size = 50
@@ -47,9 +47,9 @@ class player():
         self.stomp_cooldown = 0
         
         #colors
-        self.color = norm_color
-        self.norm_color = norm_color
-        self.hit_color = hit_color
+        self.color = (255,0,0)
+        self.norm_color = (255,0,0)
+        self.hit_color = (100,0,0)
         self.hit_this_tick = False
 
     def is_hit(self,enemy):
@@ -113,9 +113,9 @@ class enemy():
         self.atk = atk
 
         #colors
-        self.color = "green"
-        self.norm_color = "green"
-        self.hit_color = "darkgreen"        
+        self.color = (0,255,0)
+        self.norm_color = (0,255,0)
+        self.hit_color = (0,100,0)     
 
     def is_hit(self,bullet,chara,damage):
         if (bullet.pos.x < self.pos.x+self.size and bullet.pos.x > self.pos.x-self.size) and (bullet.pos.y < self.pos.y+self.size and bullet.pos.y > self.pos.y-self.size):
@@ -305,7 +305,7 @@ def draw_pause_menu():
 
 #initialize the game
 
-chara = player(50,4,(255,0,0),(100,0,0))
+chara = player(50,4)
 blub = enemy(20,100,20,10,1)
 enemies.append(blub)
 
